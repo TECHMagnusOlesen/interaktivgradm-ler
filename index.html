@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Interaktiv gradmåler</title>
+  <title>Gradmåler</title>
   <style>
     :root{
       --bg1:#0b0c10;
@@ -144,9 +144,60 @@
       .pillrow{ justify-content:flex-start }
       .small{ white-space:normal }
     }
+  
+    .backBtn{
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .backBtn:hover{ background: rgba(255,255,255,.12); }
+    .backBtn:active{ transform: translateY(1px); }
+
+    .cardTitle{
+      margin: 4px 4px 8px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .infoCard{
+      background: linear-gradient(180deg, var(--card1), var(--card2));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:12px;
+    
+      margin-top:16px;}
+    .infoCard h3{
+      margin:0 0 8px 0;
+      font-size:16px;
+      color: var(--text);
+    }
+    .infoCard ol{
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
   </style>
 </head>
 <body>
+
+  <a class="backBtn" href="index.html" aria-label="Tilbage til index">← Tilbage</a>
+
   <div class="wrap">
     <div class="top">
       <div class="field">
@@ -161,6 +212,7 @@
     </div>
 
     <div class="card">
+      <div class="cardTitle">Når vi måler vinkel på bukket plade, så måler vi altid indvendig vinkel. Derfor skal i altid starte med at sætte spidsen på grademåleren på 0 grader.</div>
       <div class="svgwrap">
         <svg id="protractor" viewBox="0 0 800 480" role="img" aria-label="Interaktiv gradmåler">
           <defs>
@@ -242,9 +294,38 @@
         </div>
       </div>
     </div>
+
+
+    <div class="infoCard">
+      <h3>Typiske fejl, der gør at korrigering ikke virker</h3>
+
+      <div style="margin-top:10px;">
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:800; color: var(--text);">1) Bukkelængde passer ikke</div>
+          <p style="margin:6px 0 0 0; color: var(--muted); line-height:1.45;">
+            Hvis bukkelængden er længere end pladen, kan det være svært at korrigere vinklen korrekt.
+            Problemet ses ofte ved vinkler under 90°, hvor der ikke sker nogen ændring,
+            selvom man forsøger at korrigere.
+          </p>
+          <p style="margin:6px 0 0 0; color: var(--muted); line-height:1.45;">
+            <em>Tjek altid om bukkelængden passer til pladens længde.</em>
+          </p>
+        </div>
+
+        <div>
+          <div style="font-weight:800; color: var(--text);">2) Forkert materiale eller bundmatrice</div>
+          <p style="margin:6px 0 0 0; color: var(--muted); line-height:1.45;">
+            Kontroller at materialetykkelsen er korrekt målt, og at bundmatricens V-spor passer til materialet.
+          </p>
+          <p style="margin:6px 0 0 0; color: var(--muted); line-height:1.45;">
+            Der opstår ofte fejl ved forkert målt pladetykkelse eller forkert V-spors bredde.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script>
+<script>
     (() => {
       const svg = document.getElementById('protractor');
       const ticksG = document.getElementById('ticks');

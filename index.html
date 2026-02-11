@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interaktiv gradmåler</title>
+  <style>
+    :root{
+      --bg1:#0b0c10;
+      --bg2:#111522;
+
+      --card1:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.03);
+      --border:rgba(255,255,255,.10);
+
+      --text:#eaf0ff;
+      --muted:#aab3c5;
+
+      --metal1:#e1e1e1;
+      --metal2:#bbbbbb;
+
+      --ink:#101114;
+      --tick:#0d0f14;
+
+      --danger:#ff6b6b;
+      --ok:#7CFF9A;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 50% 0%, var(--bg2) 0%, var(--bg1) 60%);
+      color:var(--text);
+      min-height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+    }
+
+    .wrap{ width:min(980px, 100%); display:grid; gap:12px; }
+
+    .top{
+      background: linear-gradient(180deg, var(--card1), var(--card2));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 12px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .field{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    label{ font-size:14px; color:var(--muted); }
+
+    input{
+      width:140px;
+      max-width:52vw;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.28);
+      color:var(--text);
+      outline:none;
+      font-size:16px;
+    }
+    input:focus{
+      border-color: rgba(110,231,255,.55);
+      box-shadow: 0 0 0 4px rgba(110,231,255,.12);
+    }
+
+    .pillrow{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      font-size:14px;
+      color:var(--muted);
+      white-space:nowrap;
+      backdrop-filter: blur(6px);
+    }
+    .pill strong{ color:var(--text); font-weight:800; }
+    .pill .val{ font-variant-numeric: tabular-nums; }
+
+    .card{
+      background: linear-gradient(180deg, var(--card1), var(--card2));
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      overflow:hidden;
+    }
+
+    .svgwrap{
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+
+    svg{ width:100%; height:auto; max-width:980px; display:block; }
+
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      margin-top:10px;
+      align-items:center;
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.07);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-size:14px;
+      cursor:pointer;
+    }
+    button:hover{ background: rgba(255,255,255,.10); }
+    button:active{ transform: translateY(1px); }
+
+    .small{ font-size:12px; color:var(--muted); white-space:nowrap; }
+
+    .hint{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+    }
+    .hint b{ color:var(--text); }
+
+    @media (max-width:520px){
+      .pillrow{ justify-content:flex-start }
+      .small{ white-space:normal }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="field">
+        <label for="expected">Forventet vinkel (°)</label>
+        <input id="expected" type="number" inputmode="decimal" step="0.1" value="90" />
+      </div>
+
+      <div class="pillrow">
+        <div class="pill">Målt: <strong><span class="val" id="measuredOut">0.0</span>°</strong></div>
+        <div class="pill">Korriger med: <strong><span class="val" id="corrOut">+0.0</span>°</strong></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="svgwrap">
+        <svg id="protractor" viewBox="0 0 800 480" role="img" aria-label="Interaktiv gradmåler">
+          <defs>
+            <linearGradient id="metalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--metal1)"/>
+              <stop offset="100%" stop-color="var(--metal2)"/>
+            </linearGradient>
+
+            <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".35"/>
+            </filter>
+
+            <filter id="hudShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity=".35"/>
+            </filter>
+          </defs>
+
+          <!-- BODY -->
+          <g id="body" filter="url(#softShadow)">
+            <!-- Base plate -->
+            <path id="basePlate" d="" fill="url(#metalGrad)" stroke="rgba(0,0,0,.18)" stroke-width="2"/>
+            <path id="cutL" d="" fill="rgba(0,0,0,.10)"/>
+            <path id="cutR" d="" fill="rgba(0,0,0,.10)"/>
+
+            <!-- FILLED RING (no gaps) -->
+            <path id="ringFill" d="" fill="url(#metalGrad)" stroke="rgba(0,0,0,.18)" stroke-width="2"/>
+          </g>
+
+          <!-- Ticks + labels -->
+          <g id="ticks" stroke="var(--tick)" stroke-linecap="round"></g>
+          <g id="labels" fill="var(--ink)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-weight="800"></g>
+
+          <!-- Pivot -->
+          <g id="pivot" filter="url(#softShadow)">
+            <circle cx="400" cy="400" r="36" fill="#0f1116"/>
+            <circle cx="400" cy="400" r="28" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="7"/>
+            <circle cx="400" cy="400" r="17" fill="#d2d2d2" stroke="#9e9e9e" stroke-width="2"/>
+          </g>
+
+          <!-- Arm -->
+          <g id="arm" style="cursor:grab">
+            <rect id="armRect" x="400" y="388" width="300" height="24" rx="12"
+                  fill="url(#metalGrad)" stroke="rgba(0,0,0,.22)" stroke-width="2" />
+            <rect id="armHighlight" x="412" y="394" width="276" height="12" rx="6" fill="rgba(255,255,255,.22)"/>
+
+            <!-- sharp pointer tip -->
+            <polygon id="tip" points="" fill="#14161c" opacity="0.92"/>
+            <polygon id="tipInner" points="" fill="rgba(255,255,255,.22)"/>
+
+            <!-- bigger invisible hit area -->
+            <rect id="hitRect" x="390" y="372" width="360" height="56" rx="18" fill="transparent"/>
+          </g>
+
+          <!-- HUD -->
+          <g id="hud" filter="url(#hudShadow)">
+            <rect x="280" y="420" width="240" height="38" rx="12"
+                  fill="rgba(0,0,0,.35)" stroke="rgba(255,255,255,.12)" />
+            <text id="svgMeasured" x="400" y="445" text-anchor="middle"
+                  font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial"
+                  font-size="18" font-weight="900" fill="rgba(255,255,255,.92)">
+              Målt: 0.0°
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="btnrow">
+        <button id="zeroBtn" type="button">Sæt til 0°</button>
+        <button id="ninetyBtn" type="button">Sæt til 90°</button>
+        <button id="oneEightyBtn" type="button">Sæt til 180°</button>
+        <span class="small">Tip: Træk i pinden/spidsen med finger eller mus.</span>
+      </div>
+
+      <div class="hint">
+        <span>ℹ️</span>
+        <div>
+          <b>Korrektion</b> = forventet − målt.<br/>
+          Eksempel: forventet 90°, målt 94° → korriger med <b>-4°</b>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const svg = document.getElementById('protractor');
+      const ticksG = document.getElementById('ticks');
+      const labelsG = document.getElementById('labels');
+
+      const expectedEl = document.getElementById('expected');
+      const measuredOut = document.getElementById('measuredOut');
+      const corrOut = document.getElementById('corrOut');
+      const svgMeasured = document.getElementById('svgMeasured');
+
+      const arm = document.getElementById('arm');
+      const hitRect = document.getElementById('hitRect');
+
+      const basePlate = document.getElementById('basePlate');
+      const cutL = document.getElementById('cutL');
+      const cutR = document.getElementById('cutR');
+      const ringFill = document.getElementById('ringFill');
+
+      const armRect = document.getElementById('armRect');
+      const armHighlight = document.getElementById('armHighlight');
+      const tip = document.getElementById('tip');
+      const tipInner = document.getElementById('tipInner');
+
+      // Geometry
+      const cx = 400, cy = 400;
+
+      // Ring: outer radius + thickness
+      const outerR = 300;
+      const ringThick = 69;
+      const innerR = outerR - ringThick;
+	  const MIN_ANGLE = 0;
+	  const MAX_ANGLE = 180;
+
+      // Ticks live ON the ring surface (so you always have grey behind)
+      const tickOuter = outerR - 4;
+      const tickInnerMinor = tickOuter - 12;
+      const tickInnerMid   = tickOuter - 20;
+      const tickInnerMajor = tickOuter - 30;
+
+      // Step size
+      const STEP = 0.5;
+
+      function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+      function snapStep(deg){ return Math.round(deg / STEP) * STEP; }
+
+      function polarToXY(angleDeg, r){
+        // 0..180 with 0 at LEFT, 90 at TOP, 180 at RIGHT
+        const rad = (Math.PI * angleDeg) / 180;
+        return { x: cx - r * Math.cos(rad), y: cy - r * Math.sin(rad) };
+      }
+
+      // Filled semi-ring path (outer arc left->right, inner arc right->left)
+function ringPath(outerRadius, innerRadius){
+const pL_out = polarToXY(MIN_ANGLE, outerRadius);
+const pR_out = polarToXY(MAX_ANGLE, outerRadius);
+  const pR_in  = polarToXY(MAX_ANGLE, innerRadius);
+  const pL_in  = polarToXY(MIN_ANGLE, innerRadius);
+
+  // YDER: venstre -> højre OVER TOPPEN  (sweepFlag = 1)
+  // INDER: højre -> venstre UNDER TOPPEN (sweepFlag = 0) for at lukke ringen korrekt
+  return `
+    M ${pL_out.x} ${pL_out.y}
+    A ${outerRadius} ${outerRadius} 0 0 1 ${pR_out.x} ${pR_out.y}
+    L ${pR_in.x} ${pR_in.y}
+    A ${innerRadius} ${innerRadius} 0 0 0 ${pL_in.x} ${pL_in.y}
+    Z
+  `.trim();
+}
+
+      // Base plate
+      const baseTopY = cy - 6;
+      const baseBottomY = 466;
+      const baseLeftX = cx - outerR - 35;
+      const baseRightX = cx + outerR + 35;
+
+      basePlate.setAttribute('d',
+        `M ${baseLeftX} ${baseBottomY}
+         L ${baseLeftX} ${baseTopY}
+         L ${cx - outerR + 10} ${baseTopY}
+         Q ${cx - outerR + 35} ${baseTopY} ${cx - outerR + 55} ${baseTopY + 18}
+         L ${cx + outerR - 55} ${baseTopY + 18}
+         Q ${cx + outerR - 35} ${baseTopY} ${cx + outerR - 10} ${baseTopY}
+         L ${baseRightX} ${baseTopY}
+         L ${baseRightX} ${baseBottomY}
+         Q ${baseRightX} ${baseBottomY+10} ${baseRightX-10} ${baseBottomY+10}
+         L ${baseLeftX+10} ${baseBottomY+10}
+         Q ${baseLeftX} ${baseBottomY+10} ${baseLeftX} ${baseBottomY}
+         Z`
+      );
+
+      cutL.setAttribute('d',
+        `M ${baseLeftX+40} ${baseBottomY}
+         Q ${baseLeftX+110} ${baseBottomY-10} ${baseLeftX+120} ${baseBottomY-65}
+         Q ${baseLeftX+130} ${baseBottomY-120} ${baseLeftX+70} ${baseBottomY-130}
+         Q ${baseLeftX+25} ${baseBottomY-138} ${baseLeftX+20} ${baseBottomY-95}
+         Q ${baseLeftX+18} ${baseBottomY-50} ${baseLeftX+40} ${baseBottomY}
+         Z`
+      );
+      cutR.setAttribute('d',
+        `M ${baseRightX-40} ${baseBottomY}
+         Q ${baseRightX-110} ${baseBottomY-10} ${baseRightX-120} ${baseBottomY-65}
+         Q ${baseRightX-130} ${baseBottomY-120} ${baseRightX-70} ${baseBottomY-130}
+         Q ${baseRightX-25} ${baseBottomY-138} ${baseRightX-20} ${baseBottomY-95}
+         Q ${baseRightX-18} ${baseBottomY-50} ${baseRightX-40} ${baseBottomY}
+         Z`
+      );
+
+      // Build ring (NO gaps)
+      ringFill.setAttribute('d', ringPath(outerR, innerR));
+
+      // Ticks + labels
+      function addLine(x1,y1,x2,y2, w, opacity=1){
+        const ln = document.createElementNS("http://www.w3.org/2000/svg","line");
+        ln.setAttribute('x1', x1); ln.setAttribute('y1', y1);
+        ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+        ln.setAttribute('stroke-width', w);
+        ln.setAttribute('opacity', opacity);
+        ticksG.appendChild(ln);
+      }
+
+      function addLabel(angle, text, r, size){
+        const p = polarToXY(angle, r);
+        const t = document.createElementNS("http://www.w3.org/2000/svg","text");
+        t.setAttribute('x', p.x);
+        t.setAttribute('y', p.y);
+        t.setAttribute('text-anchor','middle');
+        t.setAttribute('dominant-baseline','middle');
+        t.setAttribute('font-size', size);
+        t.textContent = text;
+        labelsG.appendChild(t);
+      }
+
+      ticksG.innerHTML = "";
+      labelsG.innerHTML = "";
+
+      for(let a=MIN_ANGLE; a<=MAX_ANGLE; a++){
+        const pOut = polarToXY(a, tickOuter);
+        let pIn, w=2, op=1;
+
+        if(a % 10 === 0){
+          pIn = polarToXY(a, tickInnerMajor);
+          w = 3.2;
+          addLabel(a, String(a), tickInnerMajor - 22, 18);
+        } else if(a % 5 === 0){
+          pIn = polarToXY(a, tickInnerMid);
+          w = 2.6;
+          op = 0.95;
+        } else {
+          pIn = polarToXY(a, tickInnerMinor);
+          w = 2.0;
+          op = 0.85;
+        }
+        addLine(pIn.x, pIn.y, pOut.x, pOut.y, w, op);
+      }
+
+      // Arm sizing: tip MUST sit on outerR
+      const armLen = outerR;
+      const tipW = 22;
+      const tipL = 26;
+
+      const rectX = cx;
+      const rectY = cy - 12;
+      const rectW = armLen - tipL - 10;
+
+      armRect.setAttribute('x', rectX);
+      armRect.setAttribute('y', rectY);
+      armRect.setAttribute('width', rectW);
+      armRect.setAttribute('height', 24);
+
+      armHighlight.setAttribute('x', rectX + 12);
+      armHighlight.setAttribute('y', cy - 6);
+      armHighlight.setAttribute('width', rectW - 24);
+      armHighlight.setAttribute('height', 12);
+
+      const tipApexX = cx + armLen;
+      const tipApexY = cy;
+      const tipBaseX = tipApexX - tipL;
+      const tipTopY = cy - tipW/2;
+      const tipBotY = cy + tipW/2;
+
+      tip.setAttribute('points', `${tipApexX},${tipApexY} ${tipBaseX},${tipTopY} ${tipBaseX},${tipBotY}`);
+      tipInner.setAttribute('points', `${tipApexX-4},${tipApexY} ${tipBaseX+5},${tipTopY+4} ${tipBaseX+5},${tipBotY-4}`);
+
+      hitRect.setAttribute('x', cx - 10);
+      hitRect.setAttribute('y', cy - 28);
+      hitRect.setAttribute('width', armLen + 30);
+      hitRect.setAttribute('height', 56);
+
+      // ===== Drag logic =====
+      let angle = 0;
+      let dragging = false;
+
+      function svgPointFromEvent(evt){
+        const pt = svg.createSVGPoint();
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+        const ctm = svg.getScreenCTM();
+        if(!ctm) return {x:0,y:0};
+        const p = pt.matrixTransform(ctm.inverse());
+        return {x:p.x, y:p.y};
+      }
+
+      function pointToAngleDeg(x,y){
+        const dx = x - cx;
+        const dy = y - cy;
+        let rad = Math.atan2(-dy, -dx);
+        let deg = rad * 180 / Math.PI;
+        deg = clamp(deg, MIN_ANGLE, MAX_ANGLE);
+        return deg;
+      }
+
+      function setAngle(deg){
+        // snap to 0.5°
+        deg = snapStep(deg);
+        angle = clamp(deg, MIN_ANGLE, MAX_ANGLE);
+
+        const rotCCW = 180 - angle;
+        arm.setAttribute('transform', `rotate(${-rotCCW} ${cx} ${cy})`);
+
+        updateReadouts();
+      }
+
+      function updateReadouts(){
+        const measured = angle;
+        const expected = parseFloat(expectedEl.value);
+        const corr = (isFinite(expected) ? (expected - measured) : NaN);
+
+        measuredOut.textContent = measured.toFixed(1);
+        svgMeasured.textContent = `Målt: ${measured.toFixed(1)}°`;
+
+        if(isFinite(corr)){
+          const sign = corr >= 0 ? "+" : "";
+          corrOut.textContent = `${sign}${corr.toFixed(1)}`;
+          corrOut.style.color = Math.abs(corr) < 0.05 ? "var(--ok)" : "var(--danger)";
+        } else {
+          corrOut.textContent = "—";
+          corrOut.style.color = "var(--muted)";
+        }
+      }
+
+      function startDrag(evt){
+        if(evt.button !== undefined && evt.button !== 0) return;
+        dragging = true;
+        arm.style.cursor = "grabbing";
+        svg.setPointerCapture?.(evt.pointerId);
+        onDrag(evt);
+      }
+
+      function endDrag(evt){
+        dragging = false;
+        arm.style.cursor = "grab";
+        try { svg.releasePointerCapture?.(evt.pointerId); } catch(e){}
+      }
+
+      function onDrag(evt){
+        if(!dragging) return;
+        const p = svgPointFromEvent(evt);
+        const deg = pointToAngleDeg(p.x, p.y);
+        setAngle(deg);
+      }
+
+      [arm, hitRect, svg].forEach(el => el.addEventListener('pointerdown', startDrag));
+      window.addEventListener('pointermove', onDrag, {passive:false});
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+
+      expectedEl.addEventListener('input', updateReadouts);
+
+      document.getElementById('zeroBtn').addEventListener('click', () => setAngle(0));
+      document.getElementById('ninetyBtn').addEventListener('click', () => setAngle(90));
+      document.getElementById('oneEightyBtn').addEventListener('click', () => setAngle(180));
+
+      // Start at 0°
+      setAngle(0);
+    })();
+  </script>
+</body>
+</html>

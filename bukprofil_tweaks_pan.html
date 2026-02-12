@@ -141,10 +141,10 @@
       border:1px solid var(--border);
       overflow:hidden;
       background: rgba(0,0,0,.10);
-      touch-action: manipulation;
+      touch-action: none;
     }
 
-    svg{ width:100%; height:100%; display:block; }
+    svg{ width:100%; height:100%; display:block; touch-action:none; }
 
     .badge{
       display:inline-flex;
@@ -482,7 +482,8 @@
 
   function render(){
     anchorBase();
-    fitToView();
+    // NOTE: we no longer auto-fit on every render; user can pan/zoom freely.
+
     clear(geomG);
     clear(ptsG);
 
@@ -573,15 +574,8 @@
       const p = modelToScreen(pts[i]);
       const isEnd = (i===0 || i===pts.length-1);
       if (!isEnd) continue;
-      const c = mk("circle", {cx:p.x, cy:p.y, r:10, class:"endpoint" + ((activeEnd===i) ? " active" : "")});
+      const c = mk("circle", {cx:p.x, cy:p.y, r:10, "data-idx": i, class:"endpoint" + ((activeEnd===i) ? " active" : "")});
       c.style.cursor = "pointer";
-      c.addEventListener("pointerdown", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        activeEnd = i;
-        render();
-        showToast(i===0 ? "Start-enden valgt" : "Slut-enden valgt");
-      });
       ptsG.appendChild(c);
     }
 
@@ -721,177 +715,186 @@
     render();
   }
 
-  // ---------- drawing interaction ----------
-  function pointerPos(ev){
-    const r = stage.getBoundingClientRect();
-    return {x: ev.clientX - r.left, y: ev.clientY - r.top};
+    // ---------- interaction (tap to draw, drag to pan, pinch/scroll to zoom) ----------
+  function clientToModel(ev){
+    const r = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+
+    // client -> viewBox coords
+    const sx = ((ev.clientX - r.left) / r.width)  * vb.width + vb.x;
+    const sy = ((ev.clientY - r.top)  / r.height) * vb.height + vb.y;
+
+    return screenToModel({x:sx, y:sy});
   }
 
-  stage.addEventListener("pointerdown", (ev) => {
-    // avoid clicks on chips (handled separately)
-    if (ev.target.closest && ev.target.closest(".chip")) return;
+  function endpointIndexFromTarget(tg){
+    const c = (tg && tg.closest) ? tg.closest(".endpoint") : null;
+    if (!c) return null;
+    const idx = parseInt(c.getAttribute("data-idx"), 10);
+    return Number.isFinite(idx) ? idx : null;
+  }
 
-    const pScreen = pointerPos(ev);
-
-    // Convert stage-local coords to SVG coords:
-    const svgRect = svg.getBoundingClientRect();
-    const sx = (pScreen.x / svgRect.width) * svg.viewBox.baseVal.width + svg.viewBox.baseVal.x;
-    const sy = (pScreen.y / svgRect.height) * svg.viewBox.baseVal.height + svg.viewBox.baseVal.y;
-
-    const m = screenToModel({x:sx, y:sy});
-
-    if (activeEnd === null){
-      // Ingen aktiv ende: pointerdown kan være start på pan/zoom.
-      return;
-    }
-
-    // Add a new point from selected end to clicked location
-    const newP = {x: m.x, y: m.y};
-
-    // Prevent degenerate segments
-    const endP = pts[activeEnd];
-    if (dist(endP, newP) < 5){
-      showToast("Vælg et punkt længere væk");
-      return;
-    }
-
-    if (activeEnd === 0){
-      pts.unshift(newP);
-      baseSegIdx += 1; // den oprindelige base-linje flytter én plads frem
-      activeEnd = 0;
-    } else if (activeEnd === pts.length-1){
-      pts.push(newP);
-      activeEnd = pts.length-1;
-    } else {
-      // should not happen
-      activeEnd = null;
-    }
-
-    lastCalc = null;
+  // Wheel zoom (desktop)
+  svg.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const dir = Math.sign(ev.deltaY);
+    const factor = dir > 0 ? 0.9 : 1.1;
+    view.zoom = Math.max(0.2, Math.min(8, view.zoom * factor));
+    applyView();
     render();
-// ---------- zoom (mouse wheel + pinch) ----------
-stage.addEventListener("wheel", (ev) => {
-  ev.preventDefault();
-  const dir = Math.sign(ev.deltaY);
-  const factor = dir > 0 ? 0.9 : 1.1;
-  view.zoom = Math.max(0.2, Math.min(8, view.zoom * factor));
-  applyView();
-  render();
-}, {passive:false});
+  }, {passive:false});
 
-// ---------- pan (drag) ----------
-let isPanning = false;
-let panStart = null; // {x,y} in client pixels
-let panStartCenter = null; // {cx,cy} in model units
-const PAN_THRESHOLD = 3; // px
+  // Pointer-based pan + pinch-zoom (mobile + desktop)
+  const pointers = new Map(); // id -> {x,y}
+  const DRAG_THRESHOLD = 4; // px
+  let down = null;          // {x,y,cx,cy, endpointIdx, hadActiveEnd}
+  let isDragging = false;
 
-function beginPan(ev){
-  isPanning = false; // becomes true after threshold
-  panStart = {x: ev.clientX, y: ev.clientY};
-  panStartCenter = {cx: view.cx, cy: view.cy};
-  // capture so we keep getting moves
-  try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
-}
+  let pinchStartDist = null;
+  let pinchStartZoom = 1;
 
-function updatePan(ev){
-  if (!panStart || !panStartCenter) return;
-  const dxClient = ev.clientX - panStart.x;
-  const dyClient = ev.clientY - panStart.y;
-
-  if (!isPanning){
-    if (Math.hypot(dxClient, dyClient) < PAN_THRESHOLD) return;
-    isPanning = true;
+  function beginDrag(ev){
+    down = {
+      x: ev.clientX,
+      y: ev.clientY,
+      cx: view.cx,
+      cy: view.cy,
+      endpointIdx: endpointIndexFromTarget(ev.target),
+      hadActiveEnd: activeEnd
+    };
+    isDragging = false;
+    try{ svg.setPointerCapture(ev.pointerId); }catch(_){}
   }
 
-  const vb = svg.viewBox.baseVal;
-  const svgRect = svg.getBoundingClientRect();
+  function updateDrag(ev){
+    if (!down) return;
+    const dxClient = ev.clientX - down.x;
+    const dyClient = ev.clientY - down.y;
 
-  const dxVb = (dxClient / svgRect.width) * vb.width;
-  const dyVb = (dyClient / svgRect.height) * vb.height;
+    if (!isDragging){
+      if (Math.hypot(dxClient, dyClient) < DRAG_THRESHOLD) return;
+      isDragging = true;
+    }
 
-  const dxModel = dxVb / view.scale;
-  const dyModel = -dyVb / view.scale; // model y up
+    // Convert client delta -> model delta (via viewBox)
+    const vb = svg.viewBox.baseVal;
+    const r = svg.getBoundingClientRect();
+    const dxVb = (dxClient / r.width)  * vb.width;
+    const dyVb = (dyClient / r.height) * vb.height;
 
-  view.cx = panStartCenter.cx - dxModel;
-  view.cy = panStartCenter.cy - dyModel;
+    const dxModel = dxVb / view.scale;
+    const dyModel = -dyVb / view.scale; // model y up
 
-  applyView();
-  render();
-}
+    view.cx = down.cx - dxModel;
+    view.cy = down.cy - dyModel;
 
-function endPan(){
-  panStart = null;
-  panStartCenter = null;
-  isPanning = false;
-}
-
-// Pinch-to-zoom via pointer events
-const pointers = new Map();
-let pinchStartDist = null;
-let pinchStartZoom = 1;
-
-stage.addEventListener("pointerdown", (ev) => {
-  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
-
-  // Start pan when one pointer is down and we're NOT in "draw from end" mode.
-  // Avoid panning when user starts on endpoints or labels.
-  const onEndpoint = (ev.target && ev.target.closest) ? ev.target.closest(".endpoint") : null;
-  const onChip = (ev.target && ev.target.closest) ? ev.target.closest(".chip") : null;
-  if (pointers.size === 1 && activeEnd === null && !onEndpoint && !onChip){
-    beginPan(ev);
-  }
-
-  if (pointers.size === 2){
-    const arr = Array.from(pointers.values());
-    const dx = arr[0].x - arr[1].x;
-    const dy = arr[0].y - arr[1].y;
-    pinchStartDist = Math.hypot(dx, dy);
-    pinchStartZoom = view.zoom;
-    endPan();
-  }
-});
-
-stage.addEventListener("pointermove", (ev) => {
-  if (!pointers.has(ev.pointerId)) return;
-  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
-
-  // Pan (single pointer) – but not while pinching
-  if (pointers.size === 1 && pinchStartDist === null && panStart){
-    updatePan(ev);
-  }
-
-  if (pointers.size === 2 && pinchStartDist){
-    const arr = Array.from(pointers.values());
-    const dx = arr[0].x - arr[1].x;
-    const dy = arr[0].y - arr[1].y;
-    const d = Math.hypot(dx, dy);
-    const ratio = d / pinchStartDist;
-    view.zoom = Math.max(0.2, Math.min(8, pinchStartZoom * ratio));
     applyView();
     render();
   }
-});
 
-stage.addEventListener("pointerup", (ev) => {
-  pointers.delete(ev.pointerId);
-  if (pointers.size < 2){
-    pinchStartDist = null;
+  function endDrag(){
+    down = null;
+    isDragging = false;
   }
-  if (pointers.size < 1){
-    endPan();
-  }
-});
-stage.addEventListener("pointercancel", (ev) => {
-  pointers.delete(ev.pointerId);
-  if (pointers.size < 2){
-    pinchStartDist = null;
-  }
-  if (pointers.size < 1){
-    endPan();
-  }
-});
 
+  svg.style.touchAction = "none";
 
+  svg.addEventListener("pointerdown", (ev) => {
+    // Ignore pointerdown on chips (they live above SVG)
+    pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+
+    // If this is the first pointer, start drag candidate immediately.
+    if (pointers.size === 1){
+      pinchStartDist = null;
+      beginDrag(ev);
+    }
+
+    // If second pointer arrives: start pinch
+    if (pointers.size === 2){
+      const arr = Array.from(pointers.values());
+      pinchStartDist = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+      pinchStartZoom = view.zoom;
+      endDrag();
+    }
+  });
+
+  svg.addEventListener("pointermove", (ev) => {
+    if (!pointers.has(ev.pointerId)) return;
+    pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+
+    if (pointers.size === 1 && pinchStartDist === null){
+      updateDrag(ev);
+      return;
+    }
+
+    if (pointers.size === 2 && pinchStartDist){
+      const arr = Array.from(pointers.values());
+      const d = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+      const ratio = d / pinchStartDist;
+      view.zoom = Math.max(0.2, Math.min(8, pinchStartZoom * ratio));
+      applyView();
+      render();
+    }
+  });
+
+  svg.addEventListener("pointerup", (ev) => {
+    pointers.delete(ev.pointerId);
+
+    // If we were pinching and one finger lifted, stop pinch.
+    if (pointers.size < 2){
+      pinchStartDist = null;
+    }
+
+    // Click/tap handling: only if we did NOT drag.
+    if (down && !isDragging){
+      const epIdx = down.endpointIdx;
+
+      if (epIdx !== null){
+        // Toggle select/deselect on endpoint tap
+        if (activeEnd === epIdx){
+          activeEnd = null;
+          render();
+          showToast("Valg fjernet");
+        } else {
+          activeEnd = epIdx;
+          render();
+          showToast(epIdx===0 ? "Start-enden valgt" : "Slut-enden valgt");
+        }
+      } else {
+        // Tap on empty area: if an end is selected, add new segment
+        if (activeEnd !== null){
+          const m = clientToModel(ev);
+          const newP = {x:m.x, y:m.y};
+          const endP = pts[activeEnd];
+          if (dist(endP, newP) < 5){
+            showToast("Vælg et punkt længere væk");
+          } else {
+            if (activeEnd === 0){
+              pts.unshift(newP);
+              baseSegIdx += 1; // den oprindelige base-linje flytter én plads frem
+              activeEnd = 0;
+            } else if (activeEnd === pts.length-1){
+              pts.push(newP);
+              activeEnd = pts.length-1;
+            } else {
+              activeEnd = null;
+            }
+            lastCalc = null;
+            render();
+          }
+        }
+      }
+    }
+
+    if (pointers.size === 0){
+      endDrag();
+    }
+  });
+
+  svg.addEventListener("pointercancel", (ev) => {
+    pointers.delete(ev.pointerId);
+    if (pointers.size < 2) pinchStartDist = null;
+    if (pointers.size === 0) endDrag();
   });
 
   // ---------- calc ----------
@@ -935,6 +938,7 @@ stage.addEventListener("pointercancel", (ev) => {
     baseSegIdx = 0;
     activeEnd = null;
     lastCalc = null;
+    fitToView();
     render();
     showToast("Nulstillet");
   });
@@ -942,6 +946,7 @@ stage.addEventListener("pointercancel", (ev) => {
   thkEl.addEventListener("input", () => { lastCalc = null; render(); });
 
   // initial render
+  fitToView();
   render();
 })();
 

@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bukket profil – udfoldet pladelængde</title>
+
+  <style>
+    :root{
+      --bg1:#0b0c10;
+      --bg2:#111522;
+
+      --card1:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.03);
+      --border:rgba(255,255,255,.10);
+
+      --text:#eaf0ff;
+      --muted:#aab3c5;
+
+      --accent:rgba(110,231,255,.9);
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 50% 0%, var(--bg2) 0%, var(--bg1) 60%);
+      color:var(--text);
+      min-height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+
+    .wrap{
+      width:min(1000px,100%);
+      display:grid;
+      gap:16px;
+    }
+
+    h1{
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.5px;
+      margin:4px 0 0;
+      font-size:22px;
+    }
+
+    .card{
+      background: linear-gradient(180deg, var(--card1), var(--card2));
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.02);
+    }
+    .field label{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .field input{
+      width:100%;
+      border:1px solid rgba(110,231,255,.25);
+      background: rgba(110,231,255,.08);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 10px;
+      font-size:15px;
+      outline:none;
+    }
+    .field input:focus{
+      border-color: rgba(110,231,255,.6);
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:12px 14px;
+      border-radius:14px;
+      text-decoration:none;
+      font-weight:650;
+      letter-spacing:.2px;
+      background: rgba(110,231,255,.15);
+      border:1px solid rgba(110,231,255,.35);
+      color:var(--text);
+      transition:.15s ease;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover{ background: rgba(110,231,255,.22); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0px); }
+
+    .btn.secondary{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.14);
+    }
+    .btn.secondary:hover{
+      border-color: rgba(110,231,255,.35);
+    }
+
+    .hint{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      margin:0;
+    }
+
+    .stage{
+      position:relative;
+      height:min(64svh, 520px);
+      border-radius:16px;
+      border:1px solid var(--border);
+      overflow:hidden;
+      background: rgba(0,0,0,.10);
+      touch-action: manipulation;
+    }
+
+    svg{ width:100%; height:100%; display:block; }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color:var(--text);
+      font-size:14px;
+    }
+    .badge strong{ font-weight:750; }
+    .muted{ color:var(--muted); }
+
+    .chip{
+      position:absolute;
+      transform: translate(-50%, -50%);
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid rgba(110,231,255,.35);
+      background: rgba(11,12,16,.75);
+      backdrop-filter: blur(6px);
+      font-size:12px;
+      white-space:nowrap;
+      pointer-events:auto;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chip small{ color:var(--muted); font-size:11px; margin-left:6px; }
+
+    .endpoint{
+      fill: rgba(110,231,255,.35);
+      stroke: rgba(110,231,255,.9);
+      stroke-width: 2.5;
+    }
+    .endpoint.active{
+      fill: rgba(110,231,255,.75);
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:14px;
+      transform: translateX(-50%);
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(11,12,16,.82);
+      backdrop-filter: blur(8px);
+      font-size:13px;
+      color:var(--text);
+      opacity:0;
+      pointer-events:none;
+      transition:.25s ease;
+      max-width:min(520px, calc(100% - 28px));
+      text-align:center;
+    }
+    .toast.show{ opacity:1; }
+
+    footer{
+      text-align:center;
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Bukket profil</h1>
+
+    <div class="card">
+      <div class="row">
+        <p class="hint">
+          Tryk på en <strong>ende</strong> (blå prik) og tryk derefter et sted i feltet for at tegne næste linje.
+          Tryk på <strong>længde</strong>- eller <strong>vinkel</strong>-mærkerne for at redigere dem.
+        </p>
+        <div class="row" style="gap:8px; justify-content:flex-end;">
+          <button id="btnUndo" class="btn secondary" type="button">Fortryd</button>
+          <button id="btnReset" class="btn secondary" type="button">Nulstil</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="field">
+          <label for="thk">Pladetykkelse (mm)</label>
+          <input id="thk" type="number" inputmode="decimal" step="0.1" min="0" value="2.0"/>
+        </div>
+</div>
+    </div>
+
+    <div class="card">
+      <div class="stage" id="stage">
+        <svg id="svg" viewBox="0 0 1000 520" aria-label="Tegnefelt">
+          <defs>
+            <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="2.2" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- grid -->
+          <g opacity="0.10">
+            <path id="grid" d="" stroke="white" stroke-width="1" />
+          </g>
+
+          <!-- geometry -->
+          <g id="geom" filter="url(#softGlow)"></g>
+          <g id="pts"></g>
+        </svg>
+      </div>
+
+      <div class="row" style="margin-top:12px; gap:10px;">
+        <button id="btnCalc" class="btn" type="button">Beregn udfoldet pladelængde</button>
+        <div class="badge" id="result">
+          <span class="muted">Udfoldet:</span> <strong>—</strong>
+          <span class="muted" id="details"></span>
+        </div>
+      </div>
+
+      <p class="hint" style="margin-top:10px;">
+        Beregning her følger din enkle regel:
+        <span class="muted">Udfoldet = sum(længder) − pladetykkelse × (antal bøjninger × 2)</span>
+        (fordi <em>hver</em> bøjning har to “linje-ender”).
+      </p>
+    </div>
+
+    <footer>Mobilvenlig prototype – alt ligger i ét HTML-dokument.</footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ---------- utilities ----------
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const fmt = (n, d=1) => {
+    if (!isFinite(n)) return "—";
+    const p = Math.pow(10,d);
+    return (Math.round(n*p)/p).toLocaleString("da-DK", {minimumFractionDigits:d, maximumFractionDigits:d});
+  };
+
+  function dist(a,b){ return Math.hypot(b.x-a.x, b.y-a.y); }
+  function sub(a,b){ return {x:a.x-b.x, y:a.y-b.y}; }
+  function add(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
+  function mul(a,s){ return {x:a.x*s, y:a.y*s}; }
+  function norm(v){
+    const l = Math.hypot(v.x, v.y);
+    if (l < 1e-9) return {x:1, y:0, len:0};
+    return {x:v.x/l, y:v.y/l, len:l};
+  }
+  function dot(a,b){ return a.x*b.x + a.y*b.y; }
+  function cross(a,b){ return a.x*b.y - a.y*b.x; }
+  function rot(v, angRad){
+    const c = Math.cos(angRad), s = Math.sin(angRad);
+    return {x: v.x*c - v.y*s, y: v.x*s + v.y*c};
+  }
+  function angleBetween(u, v){
+    const uu = norm(u), vv = norm(v);
+    return Math.acos(clamp(dot(uu, vv), -1, 1)); // 0..pi
+  }
+
+  // ---------- state ----------
+  const svg = document.getElementById("svg");
+  const stage = document.getElementById("stage");
+  const geomG = document.getElementById("geom");
+  const ptsG  = document.getElementById("pts");
+  const thkEl = document.getElementById("thk");
+  const btnUndo = document.getElementById("btnUndo");
+  const btnReset = document.getElementById("btnReset");
+  const btnCalc = document.getElementById("btnCalc");
+  const resultEl = document.getElementById("result").querySelector("strong");
+  const detailsEl = document.getElementById("details");
+  const toast = document.getElementById("toast");
+
+  // Polyline points in "model units" (mm).
+  // Start with a 100mm horizontal line.
+  let pts = [{x:0, y:0}, {x:100, y:0}];
+  let baseSegIdx = 0; // segmentet der altid skal være vandret (oprindelige startlinje)
+  let activeEnd = null; // 0 or pts.length-1
+  let lastCalc = null;
+
+  // View transform
+  let view = {scale: 4, ox: 500, oy: 260, baseScale:4, cx:0, cy:0, zoom:1}; // updated by fitToView()
+
+  function applyView(){
+  const vb = svg.viewBox.baseVal;
+  view.scale = view.baseScale * view.zoom;
+  view.ox = vb.x + vb.width/2 - view.cx * view.scale;
+  view.oy = vb.y + vb.height/2 + view.cy * view.scale;
+}
+
+// ---------- grid ----------
+  function drawGrid(){
+    const vb = svg.viewBox.baseVal;
+    const spacing = 40; // px
+    let d = "";
+    for (let x = Math.floor(vb.x/spacing)*spacing; x <= vb.x+vb.width; x += spacing){
+      d += `M ${x} ${vb.y} V ${vb.y+vb.height} `;
+    }
+    for (let y = Math.floor(vb.y/spacing)*spacing; y <= vb.y+vb.height; y += spacing){
+      d += `M ${vb.x} ${y} H ${vb.x+vb.width} `;
+    }
+    document.getElementById("grid").setAttribute("d", d.trim());
+  }
+  drawGrid();
+
+  // ---------- toast ----------
+  let toastTimer = null;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+  }
+
+  // ---------- geometry helpers ----------
+  function modelToScreen(p){
+    return {x: view.ox + p.x*view.scale, y: view.oy - p.y*view.scale}; // y up
+  }
+  function screenToModel(p){
+    return {x: (p.x - view.ox)/view.scale, y: (view.oy - p.y)/view.scale};
+  }
+
+  function fitToView(){
+    // Fit model bounding box to SVG viewbox.
+    const vb = svg.viewBox.baseVal;
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    for (const p of pts){
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    const pad = 30; // mm padding in model units
+    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+
+    // Minimum span så en helt vandret/ lodret figur stadig kan vises
+    const w = Math.max(40, maxX-minX);
+    const h = Math.max(40, maxY-minY);
+
+    const sx = vb.width / w;
+    const sy = vb.height / h;
+    view.baseScale = Math.min(sx, sy);
+
+    // Center i model
+    view.cx = (minX+maxX)/2;
+    view.cy = (minY+maxY)/2;
+
+    applyView();
+  }
+
+  // Hold altid første linje vandret (så vinkler ikke "skubber" basen skæv)
+  function anchorBase(){
+    // Hold den oprindelige startlinje (baseSegIdx -> baseSegIdx+1) vandret
+    if (pts.length < 2) return;
+    const i = Math.max(0, Math.min(baseSegIdx, pts.length-2));
+    const p0 = pts[i];
+    const dx = pts[i+1].x - p0.x;
+    const dy = pts[i+1].y - p0.y;
+    const ang = Math.atan2(dy, dx);
+    const a = -ang;
+    const ca = Math.cos(a), sa = Math.sin(a);
+
+    // Rotér omkring p0
+    pts = pts.map(p => {
+      const x = p.x - p0.x;
+      const y = p.y - p0.y;
+      return { x: x*ca - y*sa, y: x*sa + y*ca };
+    });
+
+    // Sørg for at baselinjen peger mod +x
+    if (pts[i+1].x < pts[i].x){
+      pts = pts.map(p => ({x:-p.x, y:p.y}));
+    }
+
+    // numerisk stabilitet: lås basepunkterne på samme y
+    const y0 = pts[i].y;
+    pts[i].y = y0;
+    pts[i+1].y = y0;
+  }
+
+
+  // Compute interior angle at joint i (1..n-2), in degrees
+  function jointAngleDeg(i){
+    const A = pts[i-1], B = pts[i], C = pts[i+1];
+    const v1 = sub(A,B);
+    const v2 = sub(C,B);
+    const ang = angleBetween(v1, v2);
+    return ang * 180/Math.PI;
+  }
+
+  // Compute small fillet arc endpoints for joint i, returns null if not possible
+  function filletArc(i, R){
+    if (i <= 0 || i >= pts.length-1) return null;
+    const A = pts[i-1], B = pts[i], C = pts[i+1];
+    const vBA = sub(A,B);
+    const vBC = sub(C,B);
+    const u1 = norm(vBA); // toward A
+    const u2 = norm(vBC); // toward C
+    const theta = angleBetween(vBA, vBC); // 0..pi
+    if (!isFinite(theta) || theta < 0.01 || Math.abs(Math.PI-theta) < 0.01) return null;
+
+    // tangent distance along each segment from corner to arc endpoints:
+    const t = R / Math.tan(theta/2);
+    if (t <= 0) return null;
+    if (t > u1.len - 0.5 || t > u2.len - 0.5) return null;
+
+    const P1 = add(B, mul(u1, t)); // along BA (toward A)
+    const P2 = add(B, mul(u2, t)); // along BC (toward C)
+
+    // Determine arc sweep direction in screen space with y-up model:
+    // If cross(u1,u2) > 0 => u2 is left of u1 (CCW)
+    const z = cross(u1, u2);
+    let sweep = z < 0 ? 1 : 0;
+    // Udvendig radius: brug modsat bueretning
+    sweep = 1 - sweep;
+    // We'll compute arc in screen coords and rely on this sweep heuristic.
+
+    return {P1, P2, R, sweep};
+  }
+
+  // ---------- render ----------
+  function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
+
+  function mk(tag, attrs={}){
+    const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, v);
+    return e;
+  }
+
+  function render(){
+    anchorBase();
+    fitToView();
+    clear(geomG);
+    clear(ptsG);
+
+    // remove old chips
+    stage.querySelectorAll(".chip").forEach(n => n.remove());
+
+    // stroke style
+    const stroke = "rgba(110,231,255,.95)";
+    const stroke2 = "rgba(255,255,255,.14)";
+    const strokeW = 3.5;
+
+    // draw a faint polyline (for context)
+    {
+      const d = pts.map(p => {
+        const s = modelToScreen(p);
+        return `${s.x},${s.y}`;
+      }).join(" ");
+      geomG.appendChild(mk("polyline", {
+        points: d,
+        fill: "none",
+        stroke: stroke2,
+        "stroke-width": 6,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+        opacity: "0.7"
+      }));
+    }
+
+    // draw filleted path approximation: line segments + arcs
+    const t = Math.max(0, parseFloat(thkEl.value) || 0);
+    const R = 2 * t; // altid 2×pladetykkelse (skjult)
+
+    // Build path: for each segment, shorten near joints by fillet distance when possible, then arc.
+    let pathD = "";
+    if (pts.length >= 2){
+      // Determine trimmed endpoints for each segment
+      const trims = []; // per joint i -> {P1, P2, R, sweep}
+      for (let i=1;i<pts.length-1;i++){
+        const arc = R>0 ? filletArc(i, R) : null;
+        trims[i] = arc;
+      }
+
+      // Move to start (possibly trimmed if joint at point 1 has trim on start segment)
+      let start = pts[0];
+      if (trims[1] && pts.length > 2){
+        // joint at pts[1] trims the segment (0->1) near point 1: endpoint on that segment is trims[1].P1 (lies on BA toward A; here A=pts[0], B=pts[1])
+        start = pts[0];
+      }
+
+      const s0 = modelToScreen(pts[0]);
+      pathD += `M ${s0.x} ${s0.y} `;
+
+      for (let i=0;i<pts.length-1;i++){
+        const A = pts[i], B = pts[i+1];
+        // If next point B is a joint with trim, line to its trimmed endpoint on segment (A->B)
+        let lineEnd = B;
+        if (i+1 <= pts.length-2 && trims[i+1]){
+          // trims[i+1].P1 is on BA toward A where B is joint, A is previous point
+          lineEnd = trims[i+1].P1;
+        }
+        const sEnd = modelToScreen(lineEnd);
+        pathD += `L ${sEnd.x} ${sEnd.y} `;
+
+        // If B is a joint with an arc, add arc to its other trimmed endpoint P2
+        if (i+1 <= pts.length-2 && trims[i+1]){
+          const arc = trims[i+1];
+          const sP2 = modelToScreen(arc.P2);
+          // arc radius in screen units:
+          const rpx = arc.R * view.scale;
+          // Use SVG arc; since our y is screen (down), sweep heuristic can be a bit tricky,
+          // but visually it behaves well for common "bending" gestures.
+          pathD += `A ${rpx} ${rpx} 0 0 ${arc.sweep} ${sP2.x} ${sP2.y} `;
+        }
+      }
+    }
+
+    geomG.appendChild(mk("path", {
+      d: pathD.trim(),
+      fill: "none",
+      stroke,
+      "stroke-width": strokeW,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    }));
+
+    // endpoints
+    for (let i=0;i<pts.length;i++){
+      const p = modelToScreen(pts[i]);
+      const isEnd = (i===0 || i===pts.length-1);
+      if (!isEnd) continue;
+      const c = mk("circle", {cx:p.x, cy:p.y, r:10, class:"endpoint" + ((activeEnd===i) ? " active" : "")});
+      c.style.cursor = "pointer";
+      c.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        activeEnd = i;
+        render();
+        showToast(i===0 ? "Start-enden valgt" : "Slut-enden valgt");
+      });
+      ptsG.appendChild(c);
+    }
+
+    // segment labels (længde) tæt på linjen
+    for (let i=0;i<pts.length-1;i++){
+      const A = pts[i], B = pts[i+1];
+      const mid = {x:(A.x+B.x)/2, y:(A.y+B.y)/2};
+
+      // lille offset vinkelret på linjen (i model-mm)
+      const v = sub(B, A);
+      const u = norm(v);
+      const n = {x:-u.y, y:u.x}; // venstre normal (y-up)
+      const midOff = add(mid, mul(n, 8)); // 8mm ud fra linjen
+
+      const sMid = modelToScreen(midOff);
+
+      const len = dist(A,B);
+      // leader line
+      {
+        const aS = modelToScreen(A);
+        const bS = modelToScreen(B);
+        const midS = modelToScreen(midOff);
+        geomG.appendChild(mk("line", {x1:(aS.x+bS.x)/2, y1:(aS.y+bS.y)/2, x2:midS.x, y2:midS.y, stroke:"rgba(255,255,255,.18)", "stroke-width":2, "stroke-linecap":"round"}));
+      }      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.style.left = sMid.x + "px";
+      chip.style.top  = sMid.y + "px";
+      chip.innerHTML = `<strong>${fmt(len,1)} mm</strong>`;
+      chip.title = "Tryk for at ændre længden";
+      chip.addEventListener("click", () => editLength(i));
+      stage.appendChild(chip);
+    }
+
+    // joint labels (angle)
+    for (let i=1;i<pts.length-1;i++){
+      const B = pts[i];
+      const sB = modelToScreen(B);
+      const ang = jointAngleDeg(i);
+
+      // offset label a bit
+      const A = pts[i-1], C = pts[i+1];
+      const u1 = norm(sub(A,B));
+      const u2 = norm(sub(C,B));
+      const bis = norm(add(u1, u2));
+      const off = mul(bis, -10); // tættere på hjørnet
+      const s = modelToScreen(add(B, off));
+
+// leader line til hjørne
+{
+  const cS = modelToScreen(B);
+  const sLab = modelToScreen(add(B, off));
+  geomG.appendChild(mk("line", {x1:cS.x, y1:cS.y, x2:sLab.x, y2:sLab.y, stroke:"rgba(255,255,255,.18)", "stroke-width":2, "stroke-linecap":"round"}));
+}      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.style.left = s.x + "px";
+      chip.style.top  = s.y + "px";
+      chip.innerHTML = `<strong>${fmt(ang,1)}°</strong>`;
+      chip.title = "Tryk for at ændre vinklen";
+      chip.addEventListener("click", () => editAngle(i));
+      stage.appendChild(chip);
+    }
+
+
+    // update result badge if calculated
+    if (lastCalc){
+      resultEl.textContent = `${fmt(lastCalc.unfolded,1)} mm`;
+      detailsEl.textContent = ` · sum ${fmt(lastCalc.sum,1)} − t×${lastCalc.endCount}`;
+    } else {
+      resultEl.textContent = "—";
+      detailsEl.textContent = "";
+    }
+  }
+
+  // ---------- editing ----------
+  function editLength(segIndex){
+    const A = pts[segIndex], B = pts[segIndex+1];
+    const cur = dist(A,B);
+    const raw = prompt("Ny længde for denne linje (mm):", String(Math.round(cur*10)/10));
+    if (raw === null) return;
+    const L = parseFloat(String(raw).replace(",", "."));
+    if (!isFinite(L) || L <= 0){
+      showToast("Ugyldig længde");
+      return;
+    }
+
+    // Move point B along AB direction to new length, and translate all downstream points by the same delta
+    const dir = norm(sub(B,A));
+    const newB = add(A, mul(dir, L));
+    const delta = sub(newB, B);
+
+    pts[segIndex+1] = newB;
+    for (let k=segIndex+2;k<pts.length;k++){
+      pts[k] = add(pts[k], delta);
+    }
+    lastCalc = null;
+    render();
+  }
+
+  function editAngle(jointIndex){
+    // Change angle at pts[jointIndex] by rotating the "next" segment (joint -> joint+1)
+    if (jointIndex <= 0 || jointIndex >= pts.length-1) return;
+
+    const cur = jointAngleDeg(jointIndex);
+    const raw = prompt("Ny vinkel i hjørnet (grader). 0–180:", String(Math.round(cur*10)/10));
+    if (raw === null) return;
+    const deg = parseFloat(String(raw).replace(",", "."));
+    if (!isFinite(deg) || deg <= 1 || deg >= 179){
+      showToast("Vinkel skal være mellem 1° og 179°");
+      return;
+    }
+
+    const A = pts[jointIndex-1];
+    const B = pts[jointIndex];
+    const C = pts[jointIndex+1];
+
+    const v1 = sub(A,B);        // toward prev
+    const v2 = sub(C,B);        // toward next
+    const u1 = norm(v1);
+    const u2 = norm(v2);
+    const len2 = u2.len;
+
+    // Keep orientation (left/right)
+    const z = cross(u1, u2);
+    const sign = (z >= 0) ? 1 : -1;
+
+    // New direction for v2 is u1 rotated by desired angle
+    const newDir = rot(u1, sign * (deg * Math.PI/180));
+    const newC = add(B, mul(newDir, len2));
+
+    const delta = sub(newC, C);
+    pts[jointIndex+1] = newC;
+    for (let k=jointIndex+2;k<pts.length;k++){
+      pts[k] = add(pts[k], delta); // preserve downstream shape
+    }
+
+    lastCalc = null;
+    render();
+  }
+
+  // ---------- drawing interaction ----------
+  function pointerPos(ev){
+    const r = stage.getBoundingClientRect();
+    return {x: ev.clientX - r.left, y: ev.clientY - r.top};
+  }
+
+  stage.addEventListener("pointerdown", (ev) => {
+    // avoid clicks on chips (handled separately)
+    if (ev.target.closest && ev.target.closest(".chip")) return;
+
+    const pScreen = pointerPos(ev);
+
+    // Convert stage-local coords to SVG coords:
+    const svgRect = svg.getBoundingClientRect();
+    const sx = (pScreen.x / svgRect.width) * svg.viewBox.baseVal.width + svg.viewBox.baseVal.x;
+    const sy = (pScreen.y / svgRect.height) * svg.viewBox.baseVal.height + svg.viewBox.baseVal.y;
+
+    const m = screenToModel({x:sx, y:sy});
+
+    if (activeEnd === null){
+      // Ingen aktiv ende: pointerdown kan være start på pan/zoom.
+      return;
+    }
+
+    // Add a new point from selected end to clicked location
+    const newP = {x: m.x, y: m.y};
+
+    // Prevent degenerate segments
+    const endP = pts[activeEnd];
+    if (dist(endP, newP) < 5){
+      showToast("Vælg et punkt længere væk");
+      return;
+    }
+
+    if (activeEnd === 0){
+      pts.unshift(newP);
+      baseSegIdx += 1; // den oprindelige base-linje flytter én plads frem
+      activeEnd = 0;
+    } else if (activeEnd === pts.length-1){
+      pts.push(newP);
+      activeEnd = pts.length-1;
+    } else {
+      // should not happen
+      activeEnd = null;
+    }
+
+    lastCalc = null;
+    render();
+// ---------- zoom (mouse wheel + pinch) ----------
+stage.addEventListener("wheel", (ev) => {
+  ev.preventDefault();
+  const dir = Math.sign(ev.deltaY);
+  const factor = dir > 0 ? 0.9 : 1.1;
+  view.zoom = Math.max(0.2, Math.min(8, view.zoom * factor));
+  applyView();
+  render();
+}, {passive:false});
+
+// ---------- pan (drag) ----------
+let isPanning = false;
+let panStart = null; // {x,y} in client pixels
+let panStartCenter = null; // {cx,cy} in model units
+const PAN_THRESHOLD = 3; // px
+
+function beginPan(ev){
+  isPanning = false; // becomes true after threshold
+  panStart = {x: ev.clientX, y: ev.clientY};
+  panStartCenter = {cx: view.cx, cy: view.cy};
+  // capture so we keep getting moves
+  try{ stage.setPointerCapture(ev.pointerId); }catch(_){}
+}
+
+function updatePan(ev){
+  if (!panStart || !panStartCenter) return;
+  const dxClient = ev.clientX - panStart.x;
+  const dyClient = ev.clientY - panStart.y;
+
+  if (!isPanning){
+    if (Math.hypot(dxClient, dyClient) < PAN_THRESHOLD) return;
+    isPanning = true;
+  }
+
+  const vb = svg.viewBox.baseVal;
+  const svgRect = svg.getBoundingClientRect();
+
+  const dxVb = (dxClient / svgRect.width) * vb.width;
+  const dyVb = (dyClient / svgRect.height) * vb.height;
+
+  const dxModel = dxVb / view.scale;
+  const dyModel = -dyVb / view.scale; // model y up
+
+  view.cx = panStartCenter.cx - dxModel;
+  view.cy = panStartCenter.cy - dyModel;
+
+  applyView();
+  render();
+}
+
+function endPan(){
+  panStart = null;
+  panStartCenter = null;
+  isPanning = false;
+}
+
+// Pinch-to-zoom via pointer events
+const pointers = new Map();
+let pinchStartDist = null;
+let pinchStartZoom = 1;
+
+stage.addEventListener("pointerdown", (ev) => {
+  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+
+  // Start pan when one pointer is down and we're NOT in "draw from end" mode.
+  // Avoid panning when user starts on endpoints or labels.
+  const onEndpoint = (ev.target && ev.target.closest) ? ev.target.closest(".endpoint") : null;
+  const onChip = (ev.target && ev.target.closest) ? ev.target.closest(".chip") : null;
+  if (pointers.size === 1 && activeEnd === null && !onEndpoint && !onChip){
+    beginPan(ev);
+  }
+
+  if (pointers.size === 2){
+    const arr = Array.from(pointers.values());
+    const dx = arr[0].x - arr[1].x;
+    const dy = arr[0].y - arr[1].y;
+    pinchStartDist = Math.hypot(dx, dy);
+    pinchStartZoom = view.zoom;
+    endPan();
+  }
+});
+
+stage.addEventListener("pointermove", (ev) => {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+
+  // Pan (single pointer) – but not while pinching
+  if (pointers.size === 1 && pinchStartDist === null && panStart){
+    updatePan(ev);
+  }
+
+  if (pointers.size === 2 && pinchStartDist){
+    const arr = Array.from(pointers.values());
+    const dx = arr[0].x - arr[1].x;
+    const dy = arr[0].y - arr[1].y;
+    const d = Math.hypot(dx, dy);
+    const ratio = d / pinchStartDist;
+    view.zoom = Math.max(0.2, Math.min(8, pinchStartZoom * ratio));
+    applyView();
+    render();
+  }
+});
+
+stage.addEventListener("pointerup", (ev) => {
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2){
+    pinchStartDist = null;
+  }
+  if (pointers.size < 1){
+    endPan();
+  }
+});
+stage.addEventListener("pointercancel", (ev) => {
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2){
+    pinchStartDist = null;
+  }
+  if (pointers.size < 1){
+    endPan();
+  }
+});
+
+
+  });
+
+  // ---------- calc ----------
+  function calcUnfolded(){
+    const t = Math.max(0, parseFloat(thkEl.value) || 0);
+    let sum = 0;
+    for (let i=0;i<pts.length-1;i++) sum += dist(pts[i], pts[i+1]);
+
+    // Number of joints (bends) = internal points
+    const bends = Math.max(0, pts.length - 2);
+    const endCount = bends * 2;
+    const unfolded = Math.max(0, sum - t * endCount);
+
+    lastCalc = {sum, bends, endCount, unfolded};
+    render();
+    showToast(`Udfoldet: ${fmt(unfolded,1)} mm`);
+  }
+
+  // ---------- buttons ----------
+  btnCalc.addEventListener("click", calcUnfolded);
+
+  btnUndo.addEventListener("click", () => {
+    if (pts.length <= 2){
+      showToast("Intet at fortryde");
+      return;
+    }
+    // undo based on last extension side (use activeEnd if set; else remove from end)
+    if (activeEnd === 0){
+      pts.shift();
+      activeEnd = 0;
+    } else {
+      pts.pop();
+      activeEnd = pts.length-1;
+    }
+    lastCalc = null;
+    render();
+  });
+
+  btnReset.addEventListener("click", () => {
+    pts = [{x:0, y:0}, {x:100, y:0}];
+    baseSegIdx = 0;
+    activeEnd = null;
+    lastCalc = null;
+    render();
+    showToast("Nulstillet");
+  });
+
+  thkEl.addEventListener("input", () => { lastCalc = null; render(); });
+
+  // initial render
+  render();
+})();
+
+</script>
+</body>
+</html>
